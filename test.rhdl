@@ -1,0 +1,9 @@
+in foo(pin = 1);
+out D;
+
+var x = ~foo;
+
+assign y = switch x <> foo
+    case 0b000: 1
+    # ...
+end
