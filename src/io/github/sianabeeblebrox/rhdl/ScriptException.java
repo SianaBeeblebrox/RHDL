@@ -1,10 +1,14 @@
 package io.github.sianabeeblebrox.rhdl;
 
 /**
- *
+ * An error within a script (syntax errors, size mismatch, iob, etc...)
  */
 public final class ScriptException extends RuntimeException {
     private RHDLParser.Location location = null;
+
+    public ScriptException(final Throwable cause) {
+        super(cause);
+    }
 
     public ScriptException(final String message, final Object... args) {
         super(String.format(message, args));

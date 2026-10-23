@@ -2,9 +2,11 @@ package io.github.sianabeeblebrox.rhdl;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 record Instruction(@Nullable Integer size, Supplier<@Nullable BitString> instr) {
     public @Nullable BitString evaluate() {
@@ -48,8 +50,61 @@ record Instruction(@Nullable Integer size, Supplier<@Nullable BitString> instr) 
         });
     }
 
-    public static Instruction sensitivityList(final Instruction inner) {
-        throw new UnsupportedOperationException(); // TODO
+    static final class SensitivityList {
+        enum Edge {
+            POSITIVE {
+                @Override
+                boolean test(final @Nullable BitString prev, final BitString curr) {
+                    return Objects.equals(prev, BitString.zero()) && Objects.equals(curr, BitString.one());
+                }
+                @Override
+                void validate(final Expression expression) {
+                    if(expression.size() != 1) {
+                        throw new ScriptException("Positive edge filter cannot be applied to multi-bit value of size %d", expression.size());
+                    }
+                }
+            },
+            NEGATIVE {
+                @Override
+                boolean test(final @Nullable BitString prev, final BitString curr) {
+                    return Objects.equals(prev, BitString.one()) && Objects.equals(curr, BitString.zero());
+                }
+                @Override
+                void validate(final Expression expression) {
+                    if(expression.size() != 1) {
+                        throw new ScriptException("Negative edge filter cannot be applied to multi-bit value of size %d", expression.size());
+                    }
+                }
+            },
+            CHANGE {
+                @Override
+                boolean test(final @Nullable BitString prev, final BitString curr) {
+                    return !Objects.equals(prev, curr);
+                }
+            };
+            void validate(final Expression expression) {}
+            abstract boolean test(final @Nullable BitString prev, final BitString cur);
+        }
+        record Entry(Edge edge, Expression expression) {}
+        public static Instruction of(final Script script, final Instruction instruction, final List<Entry> entries) {
+            entries.forEach(entry -> entry.edge.validate(entry.expression()));
+
+            final int ptr = script.getPreviousState().size();
+            script.getPreviousState().addAll(Collections.nCopies(entries.size(), null));
+
+            return new Instruction(null, () -> {
+                if(IntStream.range(0, entries.size()).mapToObj(offset -> {
+                    final var entry = entries.get(offset);
+                    final var curr = entry.expression.evaluate(new Expression.Context());
+                    final boolean t = entry.edge.test(script.getPreviousState(ptr + offset), curr);
+                    script.setPreviousState(ptr + offset, curr);
+                    return t;
+                }).toList().stream().anyMatch(b -> b)) {
+                    instruction.evaluate();
+                }
+                return null;
+            });
+        }
     }
 
     public static Instruction block(final Script script) {

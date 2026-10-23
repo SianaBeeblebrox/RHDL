@@ -15,11 +15,14 @@ public final class Script {
     private final @Nullable Map<String, ScriptFunction> functions;
     private final @Nullable Map<String, State> states;
 
+    private final @Nullable List<@Nullable BitString> prev;
+
     private Script(final Script parent) {
         this.parent = parent;
         this.factory = null;
         this.functions = null;
         this.states = null;
+        this.prev = null;
     }
 
     public Script(
@@ -31,6 +34,7 @@ public final class Script {
         this.factory = factory;
         this.functions = functions.stream().collect(Collectors.toMap(ScriptFunction::getName, Function.identity()));
         this.states = new HashMap<>();
+        this.prev = new ArrayList<>();
 
         constants.forEach((name, value) -> this.let(name, Expression.literal(value)));
     }
@@ -118,5 +122,17 @@ public final class Script {
 
     public @Nullable Integer size() {
         return this.instructions.isEmpty() ? null : this.instructions.getLast().size();
+    }
+
+    @Nullable BitString getPreviousState(final int i) {
+        return this.prev.get(i);
+    }
+
+    void setPreviousState(final int i, final BitString value) {
+        this.prev.set(i, value);
+    }
+
+    public List<@Nullable BitString> getPreviousState() {
+        return this.prev;
     }
 }

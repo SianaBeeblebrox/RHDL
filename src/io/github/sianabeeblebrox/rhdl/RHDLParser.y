@@ -64,8 +64,8 @@ import java.util.function.Supplier;
 %type <ArrayList<Map.Entry<String, Object>>> layout_entries
 %type <Map.Entry<String, Object>> layout_entry
 
-//%type <List<SensitivityList.Entry>> edge_list
-//%type <SensitivityList.Entry> edge
+%type <List<Instruction.SensitivityList.Entry>> edges
+%type <Instruction.SensitivityList.Entry> edge
 
 %type <List<Object>> arg_list
 
@@ -97,11 +97,23 @@ instruction: "assign" NAME '=' expr ';'                                         
            | expr ';'                                                              { $$ = this.attach(() -> Instruction.discard($1), @$);                   }
            | block_expr                                                            { $$ = $1;                                                               }
            | block_expr ';'                                                        { $$ = this.attach(() -> Instruction.discard($1), @$);                   }
+           | '@' '(' edges ')' instruction                                         { $$ = this.attach(() -> Instruction.SensitivityList.of(this.script(), $5, $3), @$);    }
 ;
 
 block_expr: "begin" { this.stack.push(this.script().derive()); } statements "end" { $$ = this.attach(() -> Instruction.block(this.stack.pop()), @$); }
           | "switch" expr switch_cases "end"                                      { $$ = this.attach(() -> Instruction.Switch.of($2, $3), @$);     }
           | NAME '(' arg_list ')'                                                 { $$ = this.attach(() -> Instruction.call(this.script(), $1, $3), @$); }
+;
+
+// Sensitivity Lists
+edges: %empty         { $$ = new LinkedList<Object>();            }
+     | edges ',' edge { $$ = $1; $1.add($3);                      }
+     | edge           { $$ = new LinkedList<Object>(List.of($1)); }
+;
+
+edge: '+' expr { $$ = new Instruction.SensitivityList.Entry(Instruction.SensitivityList.Edge.POSITIVE, $2); }
+    | '-' expr { $$ = new Instruction.SensitivityList.Entry(Instruction.SensitivityList.Edge.NEGATIVE, $2); }
+    | expr     { $$ = new Instruction.SensitivityList.Entry(Instruction.SensitivityList.Edge.CHANGE, $1);   }
 ;
 
 // Switches
