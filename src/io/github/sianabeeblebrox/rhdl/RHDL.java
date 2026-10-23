@@ -17,9 +17,13 @@ public final class RHDL {
         return script;
     }
 
-    public static void main(String args[]) throws IOException {
-        final Script s = parse(new FileInputStream("test.rhdl"), State::create, ScriptFunction.builtins(), Map.of());
-        s.evaluate();
-        System.out.println(s.getStates().entrySet().stream().map(entry -> String.format("%s=%s", entry.getKey(), ((State.ValueBackedState) entry.getValue()).get())).collect(Collectors.joining(", ")));
+    public static void main(final String args[]) throws IOException {
+        if(args.length == 1) {
+            final Script script = parse(new FileInputStream(args[0]), State::create, ScriptFunction.builtins(), Map.of());
+            script.evaluate();
+            System.out.println(script.getStates().entrySet().stream().map(entry -> String.format("%s=%s", entry.getKey(), ((State.ValueBackedState) entry.getValue()).get())).collect(Collectors.joining("\n")));
+        } else {
+            throw new IllegalArgumentException("Expected single RHDL file argument");
+        }
     }
 }
