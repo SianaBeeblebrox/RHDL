@@ -1,6 +1,8 @@
 # Default ignored files
 /shelf/
 /.idea
+/.run
 /out
 RHDLParser.java
 *.output
+*.iml
