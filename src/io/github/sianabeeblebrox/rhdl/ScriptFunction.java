@@ -1,5 +1,7 @@
 package io.github.sianabeeblebrox.rhdl;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -12,14 +14,14 @@ import java.util.stream.Collectors;
  * @param size See {@link ScriptFunction#size(Script, List)}
  * @param evaluate See {@link ScriptFunction#evaluate(Script, Expression.Context, List)}
  */
-public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integer> size, TriFunction<Script, Expression.Context, List<Object>, BitString> evaluate) {
+public record ScriptFunction(String name, BiFunction<Script, List<Object>, @Nullable Integer> size, TriFunction<Script, Expression.Context, List<Object>, @Nullable BitString> evaluate) {
     /**
      * Validates and computes the size of the return value for the given arguments without computing the value itself
      * @param script the script the function was called from
      * @param args the arguments to the function, may contain {@link Expression} or {@link Integer}
      * @return the size of the return value
      */
-    public int size(final Script script, final List<Object> args) {
+    public @Nullable Integer size(final Script script, final List<Object> args) {
         return this.size.apply(script, args);
     }
 
@@ -31,7 +33,7 @@ public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integ
      * @param args the arguments to the function, may contain {@link Expression} or {@link Integer}
      * @return the result of the function
      */
-    public BitString evaluate(final Script script, final Expression.Context context, final List<Object> args) {
+    public @Nullable BitString evaluate(final Script script, final Expression.Context context, final List<Object> args) {
         return this.evaluate.apply(script, context, args);
     }
 
@@ -82,9 +84,9 @@ public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integ
                 ScriptFunction.ofSized("one", BitString::one),
                 ScriptFunction.ofBitString("any", value -> !value.isEmpty() ? BitString.one() : BitString.zero()),
                 ScriptFunction.ofBitString("all", value -> value.equals(BitString.one(value.size())) ? BitString.one() : BitString.zero()),
-                new ScriptFunction("print", (script, args) -> 0, (script, ctx, args) -> {
+                new ScriptFunction("print", (script, args) -> null, (script, ctx, args) -> {
                     System.out.println(args.stream().map(arg -> arg instanceof final Expression expression ? expression.evaluate(new Expression.Context()) : arg).map(Object::toString).collect(Collectors.joining(", ")));
-                    return BitString.zero(0);
+                    return null;
                 })
         );
     }

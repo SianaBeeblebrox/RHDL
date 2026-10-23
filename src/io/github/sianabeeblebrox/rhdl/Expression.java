@@ -9,7 +9,7 @@ import java.util.function.Function;
 record Expression(int size, Function<Context, BitString> evaluate) {
     record Context() {}
 
-    public final BitString evaluate(final Context context) {
+    public BitString evaluate(final Context context) {
         return this.evaluate.apply(context);
     }
 
@@ -81,11 +81,11 @@ record Expression(int size, Function<Context, BitString> evaluate) {
         return new Expression(lhs.size() + rhs.size(), ctx -> BitString.concat(lhs.evaluate(ctx), rhs.evaluate(ctx)));
     }
 
-    public static Expression call(final Script script, final String name, final List<Object> args) {
-        if((Object) script.getFunction(name) instanceof final ScriptFunction function) {
-            return new Expression(function.size(script, args), ctx -> function.evaluate(script, ctx, args));
+    public static Expression instruction(final Instruction instruction) {
+        if(instruction.size() != null) {
+            return new Expression(instruction.size(), ctx -> instruction.evaluate());
         } else {
-            throw new ScriptException("No such function '%s'", name);
+            throw new ScriptException("Instruction does not resolve to a value");
         }
     }
 }

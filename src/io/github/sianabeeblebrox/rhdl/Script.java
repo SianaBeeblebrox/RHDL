@@ -105,7 +105,18 @@ public final class Script {
         this.states.put(name, state);
     }
 
-    public void evaluate() {
-        this.instructions.forEach(Instruction::evaluate);
+    public @Nullable BitString evaluate() {
+        for(int i = 0; i < this.instructions.size(); i++) {
+            if(i == this.instructions.size() - 1) {
+                return this.instructions.get(i).evaluate();
+            } else {
+                this.instructions.get(i).evaluate();
+            }
+        }
+        return null;
+    }
+
+    public @Nullable Integer size() {
+        return this.instructions.isEmpty() ? null : this.instructions.getLast().size();
     }
 }

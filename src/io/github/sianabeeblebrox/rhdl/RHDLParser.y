@@ -57,6 +57,7 @@ import java.util.function.Supplier;
 %token <Integer> INTEGER_LITERAL
 
 %type <Instruction> instruction
+%type <Instruction> block_expr
 %type <Expression> expr
 
 %type <Map<String, Object>> layout
@@ -67,6 +68,9 @@ import java.util.function.Supplier;
 //%type <SensitivityList.Entry> edge
 
 %type <List<Object>> arg_list
+
+%type <List<Instruction.Switch.Case>> switch_cases
+%type <Instruction.Switch.Case> switch_case
 
 %type <Object> literal
 %type <Object> arg
@@ -88,9 +92,25 @@ statement: instruction             { this.script().getInstructions().add($1); }
          | declaration             {}
 ;
 
-instruction: "begin" { this.stack.push(this.script().derive()); } statements "end" { $$ = this.attach(() -> Instruction.block(this.stack.pop()), @$);       }
-           | "assign" NAME '=' expr ';'                                            { $$ = this.attach(() -> Instruction.assign(this.script(), $2, $4), @$); }
-           | expr ';'                                                              { $$ = this.attach(() -> Instruction.expression($1), @$);                }
+instruction: "assign" NAME '=' expr ';'                                            { $$ = this.attach(() -> Instruction.assign(this.script(), $2, $4), @$); }
+           | expr                                                                  { $$ = this.attach(() -> Instruction.expression($1), @$);                }
+           | expr ';'                                                              { $$ = this.attach(() -> Instruction.discard($1), @$);                   }
+           | block_expr                                                            { $$ = $1;                                                               }
+           | block_expr ';'                                                        { $$ = this.attach(() -> Instruction.discard($1), @$);                   }
+;
+
+block_expr: "begin" { this.stack.push(this.script().derive()); } statements "end" { $$ = this.attach(() -> Instruction.block(this.stack.pop()), @$); }
+          | "switch" expr switch_cases "end"                                      { $$ = this.attach(() -> Instruction.Switch.of($2, $3), @$);     }
+          | NAME '(' arg_list ')'                                                 { $$ = this.attach(() -> Instruction.call(this.script(), $1, $3), @$); }
+;
+
+// Switches
+switch_cases: switch_cases switch_case { $$ = $1; $1.add($2); }
+            | switch_case              { $$ = new ArrayList<Object>(List.of($1)); }
+;
+
+switch_case: "case" ':' instruction      { $$ = new Instruction.Switch.Case(null, $3); }
+           | "case" expr ':' instruction { $$ = new Instruction.Switch.Case($2, $4); }
 ;
 
 // State and Let Declarations
@@ -137,11 +157,6 @@ literal: NAME              { $$ = $1; }
        | INTEGER_LITERAL   { $$ = $1; }
 ;
 
-// Switches
-//switch_expr: "switch" expr switch_expr_cases "end";
-//switch_expr_cases: switch_expr_cases switch_expr_case | switch_expr_case;
-//switch_expr_case: "case" BITSTRING_LITERAL ':' expr;
-
 // Expressions
 expr: NAME                                             { $$ = this.attach(() -> Expression.var(this.script(), $1), @$);      }
     | BITSTRING_LITERAL                                { $$ = this.attach(() -> Expression.literal($1), @$);                 }
@@ -156,7 +171,7 @@ expr: NAME                                             { $$ = this.attach(() -> 
     | expr '['                 ':'                 ']' { $$ = this.attach(() -> Expression.slice($1, null, null), @$);       }
     | expr '[' INTEGER_LITERAL ']'                     { $$ = this.attach(() -> Expression.at($1, $3), @$);                  }
     | expr '<' '>' expr                                { $$ = this.attach(() -> Expression.concat($1, $4), @$);              }
-    | NAME '(' arg_list ')'                            { $$ = this.attach(() -> Expression.call(this.script(), $1, $3), @$); }
+    | '(' block_expr ')'                               { $$ = this.attach(() -> Expression.instruction($2), @$);             }
     | '(' expr ')'                                     { $$ = $2;                                                            }
 ;
 
