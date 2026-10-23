@@ -1,8 +1,10 @@
-package io.github.tobyrue.redstonescript;
+package io.github.sianabeeblebrox.rhdl;
 
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * A named function callable from within a script
@@ -48,7 +50,7 @@ public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integ
      * @return the new {@link ScriptFunction}
      */
     public static ScriptFunction ofBitString(final String name, final Function<BitString, BitString> f) {
-        return new ScriptFunction(name, (script, args) -> args.size() == 1 && args.get(0) instanceof final Expression expression ? expression.size() : Util.fail(() -> new ScriptException()), (script, ctx, args) -> f.apply(((Expression) args.get(0)).evaluate(ctx)));
+        return new ScriptFunction(name, (script, args) -> args.size() == 1 && args.get(0) instanceof final Expression expression ? expression.size() : fail(() -> new ScriptException("Function '%s' expects a single value", name)), (script, ctx, args) -> f.apply(((Expression) args.get(0)).evaluate(ctx)));
     }
 
     /**
@@ -58,7 +60,7 @@ public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integ
      * @return the new {@link ScriptFunction}
      */
     public static ScriptFunction ofSized(final String name, final Function<Integer, BitString> f) {
-        return new ScriptFunction(name, (script, args) -> args.size() == 1 && args.get(0) instanceof final Integer size ? size : Util.fail(() -> new ScriptException()), (script, ctx, args) -> f.apply((Integer) args.get(0)));
+        return new ScriptFunction(name, (script, args) -> args.size() == 1 && args.get(0) instanceof final Integer size ? size : fail(() -> new ScriptException("Function '%s' expects a single integer constant", name)), (script, ctx, args) -> f.apply((Integer) args.get(0)));
     }
 
     /**
@@ -79,7 +81,15 @@ public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integ
                 ScriptFunction.ofSized("zero", BitString::zero),
                 ScriptFunction.ofSized("one", BitString::one),
                 ScriptFunction.ofBitString("any", value -> !value.isEmpty() ? BitString.one() : BitString.zero()),
-                ScriptFunction.ofBitString("all", value -> value.equals(BitString.one(value.size())) ? BitString.one() : BitString.zero())
+                ScriptFunction.ofBitString("all", value -> value.equals(BitString.one(value.size())) ? BitString.one() : BitString.zero()),
+                new ScriptFunction("print", (script, args) -> 0, (script, ctx, args) -> {
+                    System.out.println(args.stream().map(arg -> arg instanceof final Expression expression ? expression.evaluate(new Expression.Context()) : arg).map(Object::toString).collect(Collectors.joining(", ")));
+                    return BitString.zero(0);
+                })
         );
+    }
+
+    private static <T, R extends Throwable> T fail(Supplier<R> t) throws R {
+        throw t.get();
     }
 }

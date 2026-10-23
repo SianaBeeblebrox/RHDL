@@ -1,4 +1,4 @@
-package io.github.tobyrue.redstonescript;
+package io.github.sianabeeblebrox.rhdl;
 
 import java.util.Objects;
 import java.util.function.Function;

@@ -1,4 +1,4 @@
-package io.github.tobyrue.redstonescript;
+package io.github.sianabeeblebrox.rhdl;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -294,80 +294,5 @@ public final class BitString implements Cloneable {
      */
     public static BitString zero() {
         return BitString.zero(1);
-    }
-
-    public static void main(String[] args) {
-        System.out.println("=== io.github.tobyrue.redstonescript.BitString ===");
-
-        assert BitString.valueOf("00000000").not().equals(BitString.valueOf("11111111"));
-        assert BitString.valueOf("01000000").not().equals(BitString.valueOf("10111111"));
-        assert BitString.valueOf("010").not().equals(BitString.valueOf("101"));
-        assert BitString.valueOf("100_0000_0010").not().equals(BitString.valueOf("011_1111_1101"));
-        assert new BitString(3).equals(BitString.valueOf("0b000"));
-        assert new BitString(3).not().equals(BitString.valueOf("0b111"));
-
-        assert BitString.concat(BitString.valueOf("010"), BitString.valueOf("100011000")).equals(BitString.valueOf("010100011000"));
-
-        assert BitString.valueOf("11010100").slice(6, 3).equals(BitString.valueOf("010"));
-        assert !BitString.valueOf("11010100").slice(6,3).equals(BitString.valueOf("101"));
-        assert BitString.valueOf("00111000").slice(6, 3).equals(BitString.valueOf("111"));
-        assert BitString.valueOf("1010_1111_0000_0101").slice(16, 0).equals(BitString.valueOf("1010_1111_0000_0101"));
-        assert BitString.valueOf("1010_1111_0000_0101").slice(8, 4).equals(BitString.valueOf("0000"));
-
-        assert BitString.valueOf("11010100").at(3).equals(BitString.valueOf("0"));
-        assert BitString.valueOf("11010100").at(4).equals(BitString.valueOf("1"));
-
-        assert BitString.valueOf("0111001").and(BitString.valueOf("0100110")).equals(BitString.valueOf("0100000"));
-        assert BitString.valueOf("0111001").or(BitString.valueOf("0100110")).equals(BitString.valueOf("0111111"));
-        assert BitString.valueOf("0111001").xor(BitString.valueOf("0100110")).equals(BitString.valueOf("0011111"));
-
-        System.out.println("Ok");
-
-        var x = BitString.valueOf("0b100_00000010");
-
-        x.set(7);
-
-        for(int i = x.size(); i > 0; i--) {
-            System.out.print(x.get(i-1)?"1":"0");
-        }
-        System.out.println();
-
-        x.unset(7);
-
-        System.out.println(IntStream.range(0, x.bytes.length).mapToObj(i -> stringify(x.bytes[x.bytes.length - 1 - i])).collect(Collectors.joining(" ")));
-        x.not();
-        System.out.println(IntStream.range(0, x.bytes.length).mapToObj(i -> stringify(x.bytes[x.bytes.length - 1 - i])).collect(Collectors.joining(" ")));
-        System.out.println(x);
-
-        var n = 0;//x.size % 8;
-        System.out.println(stringify((byte) (((1 << n) - 1) & 0xff)));
-        System.out.println(BitString.valueOf("0b1000_0000").not());
-        System.out.println(BitString.valueOf("0b100_0000").not());
-
-        System.out.println("Concat4: " + timeit(() -> {
-            BitString.concat(BitString.valueOf("0101"), BitString.valueOf("1110"));
-        }) + "ms");
-        System.out.println("And4: " + timeit(() -> {
-            BitString.valueOf("0101").and(BitString.valueOf("1110"));
-        }) + "ms");
-        System.out.println("Concat32: " + timeit(() -> {
-            BitString.concat(BitString.valueOf("01010101010101010101010101010101"), BitString.valueOf("11101110111011101110111011101110"));
-        }) + "ms");
-        System.out.println("And32: " + timeit(() -> {
-            BitString.valueOf("01010101010101010101010101010101").and(BitString.valueOf("11101110111011101110111011101110"));
-        }) + "ms");
-    }
-
-    public static double timeit(final Runnable f) {
-        final int N = 100;
-        final long start = System.nanoTime();
-        for(int i = 0; i < N; i++) f.run();
-        final long end = System.nanoTime();
-        return (end - start)/1000000d/N;
-    }
-
-
-    public static String stringify(final byte b) {
-        return "0b" + String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0');
     }
 }
