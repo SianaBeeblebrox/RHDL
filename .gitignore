@@ -1,5 +1,7 @@
 # Default ignored files
 /shelf/
-/.idea/workspace.xml
-.idea
-out
+/.idea
+/out
+.local
+RHDLParser.java
+*.output
