@@ -2,6 +2,5 @@
 /shelf/
 /.idea
 /out
-.local
 RHDLParser.java
 *.output
