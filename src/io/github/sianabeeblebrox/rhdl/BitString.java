@@ -295,4 +295,15 @@ public final class BitString implements Cloneable {
     public static BitString zero() {
         return BitString.zero(1);
     }
+
+    /**
+     * Returns a bit string with a single true bit corresponding to the ordinal of an enum
+     * @param e an enum instance
+     * @return a bit string with a single true bit corresponding to the ordinal of an enum
+     */
+    public static BitString  forEnum(final Enum<?> e) {
+        final BitString bits = new BitString(e.getClass().getEnumConstants().length);
+        bits.set(e.ordinal());
+        return bits;
+    }
 }
