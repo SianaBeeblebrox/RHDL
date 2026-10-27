@@ -2,6 +2,7 @@ package io.github.sianabeeblebrox.rhdl;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -78,6 +79,14 @@ record Expression(int size, Function<Context, BitString> evaluate) {
 
     public static Expression concat(final Expression lhs, final Expression rhs) {
         return new Expression(lhs.size() + rhs.size(), ctx -> BitString.concat(lhs.evaluate(ctx), rhs.evaluate(ctx)));
+    }
+
+    public static Expression call(final Script script, final String name, final List<Object> args) {
+        if((Object) script.getFunction(name) instanceof final ScriptFunction function) {
+            return new Expression(function.size(script, args), ctx -> function.evaluate(script, new Expression.Context(), args));
+        } else {
+            throw new ScriptException("No such function '%s'", name);
+        }
     }
 
     public static Expression instruction(final Instruction instruction) {

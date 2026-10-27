@@ -111,14 +111,6 @@ record Instruction(@Nullable Integer size, Supplier<@Nullable BitString> instr) 
         return new Instruction(script.size(), script::evaluate);
     }
 
-    public static Instruction call(final Script script, final String name, final List<Object> args) {
-        if((Object) script.getFunction(name) instanceof final ScriptFunction function) {
-            return new Instruction(function.size(script, args), () -> function.evaluate(script, new Expression.Context(), args));
-        } else {
-            throw new ScriptException("No such function '%s'", name);
-        }
-    }
-
     static final class Switch {
         record Case(@Nullable Expression expression, Instruction branch) {}
         public static Instruction of(final Expression arg, final List<Case> cases) {
