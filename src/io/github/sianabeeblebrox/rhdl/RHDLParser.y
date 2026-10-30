@@ -51,10 +51,12 @@ import java.util.function.Supplier;
 %token CASE "case"
 %token BEGIN "begin"
 %token END "end"
+%token IF "if"
 
 %token <String> NAME
 %token <BitString> BITSTRING_LITERAL
 %token <Integer> INTEGER_LITERAL
+%token <String> STRING_LITERAL
 
 %type <Instruction> instruction
 %type <Instruction> block_expr
@@ -98,6 +100,7 @@ instruction: "assign" NAME '=' expr ';'                                         
            | block_expr                                                            { $$ = $1;                                                                           }
            | block_expr ';'                                                        { $$ = this.attach(() -> Instruction.discard($1), @$);                               }
            | '@' '(' edges ')' instruction                                         { $$ = this.attach(() -> Instruction.SensitivityList.of(this.script(), $5, $3), @$); }
+           | "if" expr instruction                                                 { $$ = this.attach(() -> Instruction.conditional($2, $3), @$);                       }
 ;
 
 block_expr: "begin" { this.stack.push(this.script().derive()); } statements "end" { $$ = this.attach(() -> Instruction.block(this.stack.pop()), @$); }
@@ -131,22 +134,6 @@ declaration: "let" NAME '=' expr ';' { this.attach(() -> this.script().let($2, $
            | "state" NAME layout ';' { this.attach(() -> this.script().declare($2, State.Type.STATE, $3), @$); }
 ;
 
-/*
-// Sensitivity Filter
-sensitivity_filter: '@' '(' edge_list ')' {}
-                  | '@' '(' ')' {}
-;
-
-edge_list: edge               { $$ = new ArrayList<SensitivityFilter.Edge>(List.of($1)); }
-         | edge_list ',' edge { $$ = $1; $1.add($3);                                     }
-;
-
-edge: NAME     { $$ = new SensitivityFilter.Entry($1, SensitivityFilter.Edge.EITHER);   }
-    | '+' NAME { $$ = new SensitivityFilter.Entry($1, SensitivityFilter.Edge.POSITIVE); }
-    | '-' NAME { $$ = new SensitivityFilter.Entry($1, SensitivityFilter.Edge.NEGATIVE); }
-;
-*/
-
 // State Declaration Layout Lists
 layout: '(' layout_entries ')' { $$ = Map.ofEntries($2.toArray(new Map.Entry[$2.size()])); }
         | '(' ')'              { $$ = Map.of(); }
@@ -160,6 +147,7 @@ layout_entry: NAME '=' literal { $$ = Map.entry($1, $3); }
 ;
 
 arg: INTEGER_LITERAL   { $$ = $1; }
+   | STRING_LITERAL    { $$ = $1; }
    | expr              { $$ = $1; }
 ;
 
@@ -217,6 +205,7 @@ final class RHDLLexer implements RHDLParser.Lexer {
         this.tokenizer.wordChars('a', 'z');
         this.tokenizer.wordChars('A', 'Z');
         this.tokenizer.wordChars('_', '_');
+        this.tokenizer.quoteChar('"');
     }
 
     @Override
@@ -260,6 +249,7 @@ final class RHDLLexer implements RHDLParser.Lexer {
                 case "case": return CASE;
                 case "begin": return BEGIN;
                 case "end": return END;
+                case "if": return IF;
             }
 
             if(Pattern.matches("^0b[01_]*$", this.tokenizer.sval)) {
@@ -272,6 +262,9 @@ final class RHDLLexer implements RHDLParser.Lexer {
                 this.yylval = this.tokenizer.sval;
                 return NAME;
             }
+        } else if(ttype == '"') {
+            this.yylval = this.tokenizer.sval;
+            return STRING_LITERAL;
         } else {
             return this.tokenizer.ttype;
         }

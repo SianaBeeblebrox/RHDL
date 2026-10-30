@@ -104,7 +104,7 @@ public final class Script {
 
         final var state = this.factory.apply(name, type, layout);
         if(state instanceof final State.ReadableState readableState) {
-            this.let(name, new Expression(readableState.size(), ctx -> readableState.reader().get().clone()));
+            this.let(name, Expression.of(readableState.size(), ctx -> readableState.reader().get().clone()));
         }
         this.states.put(name, state);
     }

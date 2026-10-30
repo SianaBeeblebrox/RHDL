@@ -16,7 +16,7 @@ public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integ
     /**
      * Validates and computes the size of the return value for the given arguments without computing the value itself
      * @param script the script the function was called from
-     * @param args the arguments to the function, may contain {@link Expression} or {@link Integer}
+     * @param args the arguments to the function, may contain {@link Expression}, {@link String}, or {@link Integer}
      * @return the size of the return value
      */
     public Integer size(final Script script, final List<Object> args) {
@@ -28,7 +28,7 @@ public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integ
      * {@link ScriptFunction#size(Script, List)} but can rely on preconditions established there
      * @param script the script the function was called from
      * @param context the enclosing expression context
-     * @param args the arguments to the function, may contain {@link Expression} or {@link Integer}
+     * @param args the arguments to the function, may contain {@link Expression}, {@link String}, or {@link Integer}
      * @return the result of the function
      */
     public BitString evaluate(final Script script, final Expression.Context context, final List<Object> args) {
@@ -83,7 +83,7 @@ public record ScriptFunction(String name, BiFunction<Script, List<Object>, Integ
                 ScriptFunction.ofBitString("any", value -> !value.isEmpty() ? BitString.one() : BitString.zero()),
                 ScriptFunction.ofBitString("all", value -> value.equals(BitString.one(value.size())) ? BitString.one() : BitString.zero()),
                 new ScriptFunction("print", (script, args) -> 0, (script, ctx, args) -> {
-                    System.out.println(args.stream().map(arg -> arg instanceof final Expression expression ? expression.evaluate(new Expression.Context()) : arg).map(Object::toString).collect(Collectors.joining(", ")));
+                    System.out.println(args.stream().map(arg -> arg instanceof final Expression expression ? expression.evaluate(ctx) : arg).map(Object::toString).collect(Collectors.joining()));
                     return BitString.zero(0);
                 })
         );

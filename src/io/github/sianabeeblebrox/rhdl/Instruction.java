@@ -2,9 +2,7 @@ package io.github.sianabeeblebrox.rhdl;
 
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
@@ -107,6 +105,15 @@ record Instruction(@Nullable Integer size, Supplier<@Nullable BitString> instr) 
         }
     }
 
+    public static Instruction conditional(final Expression expression, final Instruction instruction) {
+        return new Instruction(null, () -> {
+            if(!expression.evaluate(new Expression.Context()).isEmpty()) {
+                instruction.evaluate();
+            }
+            return null;
+        });
+    }
+
     public static Instruction block(final Script script) {
         return new Instruction(script.size(), script::evaluate);
     }
@@ -132,8 +139,8 @@ record Instruction(@Nullable Integer size, Supplier<@Nullable BitString> instr) 
             }
 
             // Require default case if size is not null
-            if(size != null && cases.stream().noneMatch(c -> c.expression == null)) {
-                throw new ScriptException("Missing default branch for switch expression");
+            if(size != null && !isExhaustive(arg, cases)) {
+                throw new ScriptException("Cases for switch expression are not exhaustive");
             }
 
             return new Instruction(size, () -> {
@@ -145,6 +152,18 @@ record Instruction(@Nullable Integer size, Supplier<@Nullable BitString> instr) 
                 }
                 return null;
             });
+        }
+
+        private static boolean isExhaustive(final Expression arg, final List<Case> cases) {
+            final Set<BitString> literals = new HashSet<>();
+            for(final Case c : cases) {
+                if(c.expression == null) {
+                    return true;
+                } else if(c.expression instanceof final Expression.ConstExpression expr) {
+                    literals.add(expr.value());
+                }
+            }
+            return literals.size() == 1 << arg.size();
         }
     }
 }

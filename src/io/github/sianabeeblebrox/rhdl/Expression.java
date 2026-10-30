@@ -6,52 +6,76 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-record Expression(int size, Function<Context, BitString> evaluate) {
+interface Expression {
     record Context() {}
+    int size();
+    BitString evaluate(final Context context);
 
-    public BitString evaluate(final Context context) {
-        return this.evaluate.apply(context);
+    static Expression of(final int size, final Function<Context, BitString> impl) {
+        return new Expression() {
+            @Override
+            public int size() {
+                return size;
+            }
+
+            @Override
+            public BitString evaluate(final Context context) {
+                return impl.apply(context);
+            }
+        };
     }
 
     private static Expression bop(final Expression lhs, final Expression rhs, final BiConsumer<BitString, BitString> f, final String name) {
         if(lhs.size() != rhs.size()) {
             throw new ScriptException("Inconsistent sizes %d and %d for binary operator '%s'", lhs.size(), rhs.size(), name);
         }
-        return new Expression(lhs.size(), ctx -> {
+        return Expression.of(lhs.size(), ctx -> {
             final BitString result;
             f.accept(result = lhs.evaluate(ctx), rhs.evaluate(ctx));
             return result;
         });
     }
 
-    public static Expression and(final Expression lhs, final Expression rhs) {
+    static Expression and(final Expression lhs, final Expression rhs) {
         return bop(lhs, rhs, BitString::and, "&");
     }
 
-    public static Expression or(final Expression lhs, final Expression rhs) {
+    static Expression or(final Expression lhs, final Expression rhs) {
         return bop(lhs, rhs, BitString::or, "|");
     }
 
-    public static Expression xor(final Expression lhs, final Expression rhs) {
+    static Expression xor(final Expression lhs, final Expression rhs) {
         return bop(lhs, rhs, BitString::xor, "^");
     }
 
-    public static Expression not(final Expression expression) {
-        return new Expression(expression.size(), ctx -> expression.evaluate(ctx).not());
+    static Expression not(final Expression expression) {
+        return Expression.of(expression.size(), ctx -> expression.evaluate(ctx).not());
     }
 
-    public static Expression ternary(final Expression i, final Expression t, final Expression e) {
+    static Expression ternary(final Expression i, final Expression t, final Expression e) {
         if(t.size() != e.size()) {
             throw new ScriptException("Inconsistent sizes %d and %d for ternary branches", t.size(), e.size());
         }
-        return new Expression(t.size(), ctx -> !i.evaluate(ctx).isEmpty() ? t.evaluate(ctx) : e.evaluate(ctx));
+        return Expression.of(t.size(), ctx -> !i.evaluate(ctx).isEmpty() ? t.evaluate(ctx) : e.evaluate(ctx));
     }
 
-    public static Expression literal(final BitString value) {
-        return new Expression(value.size(), ctx -> value.clone());
+    record ConstExpression(BitString value) implements Expression {
+        @Override
+        public int size() {
+            return this.value.size();
+        }
+
+        @Override
+        public BitString evaluate(final Context context) {
+            return this.value.clone();
+        }
     }
 
-    public static Expression var(final Script script, final String name) {
+    static Expression literal(final BitString value) {
+        return new ConstExpression(value);
+    }
+
+    static Expression var(final Script script, final String name) {
         if((Object) script.getExpression(name) instanceof final Expression expression) {
             return expression;
         } else {
@@ -59,39 +83,39 @@ record Expression(int size, Function<Context, BitString> evaluate) {
         }
     }
 
-    public static Expression slice(final Expression expression, final @Nullable Integer end, final @Nullable Integer begin) {
+    static Expression slice(final Expression expression, final @Nullable Integer end, final @Nullable Integer begin) {
         return slice(expression, end == null ? expression.size() : end, begin == null ? 0 : begin);
     }
 
-    public static Expression slice(final Expression expression, final int end, final int begin) {
+    static Expression slice(final Expression expression, final int end, final int begin) {
         if(begin < 0 || end < begin || end >= expression.size()) {
             throw new ScriptException("Invalid slice bounds [%d:%d] for size %d", end, begin, expression.size());
         }
-        return new Expression(end - begin, ctx -> expression.evaluate(ctx).slice(end, begin));
+        return Expression.of(end - begin, ctx -> expression.evaluate(ctx).slice(end, begin));
     }
 
-    public static Expression at(final Expression expression, final Integer index) {
+    static Expression at(final Expression expression, final Integer index) {
         if(index < 0 || index >= expression.size()) {
             throw new ScriptException("Invalid index %d for size %d", index, expression.size());
         }
-        return new Expression(1, ctx -> expression.evaluate(ctx).at(index));
+        return Expression.of(1, ctx -> expression.evaluate(ctx).at(index));
     }
 
-    public static Expression concat(final Expression lhs, final Expression rhs) {
-        return new Expression(lhs.size() + rhs.size(), ctx -> BitString.concat(lhs.evaluate(ctx), rhs.evaluate(ctx)));
+    static Expression concat(final Expression lhs, final Expression rhs) {
+        return Expression.of(lhs.size() + rhs.size(), ctx -> BitString.concat(lhs.evaluate(ctx), rhs.evaluate(ctx)));
     }
 
-    public static Expression call(final Script script, final String name, final List<Object> args) {
+    static Expression call(final Script script, final String name, final List<Object> args) {
         if((Object) script.getFunction(name) instanceof final ScriptFunction function) {
-            return new Expression(function.size(script, args), ctx -> function.evaluate(script, new Expression.Context(), args));
+            return Expression.of(function.size(script, args), ctx -> function.evaluate(script, new Expression.Context(), args));
         } else {
             throw new ScriptException("No such function '%s'", name);
         }
     }
 
-    public static Expression instruction(final Instruction instruction) {
+    static Expression instruction(final Instruction instruction) {
         if(instruction.size() != null) {
-            return new Expression(instruction.size(), ctx -> instruction.evaluate());
+            return Expression.of(instruction.size(), ctx -> instruction.evaluate());
         } else {
             throw new ScriptException("Instruction does not resolve to a value");
         }
