@@ -28,16 +28,20 @@ public interface State {
     }
 
     abstract class ValueBackedState implements State {
+        private final String name;
+        private final Type type;
         protected BitString value;
 
-        public ValueBackedState(final BitString value) {
+        public ValueBackedState(final String name, final Type type, final BitString value) {
+            this.name = name;
+            this.type = type;
             this.value = value;
         }
-        public ValueBackedState(final int size) {
-            this(new BitString(size));
+        public ValueBackedState(final String name, final Type type, final int size) {
+            this(name, type, new BitString(size));
         }
-        public ValueBackedState() {
-            this(1);
+        public ValueBackedState(final String name, final Type type) {
+            this(name, type, 1);
         }
 
         @Override
@@ -50,13 +54,21 @@ public interface State {
             this.value = value;
         }
 
+        public String getName() {
+            return name;
+        }
+
+        public Type getType() {
+            return type;
+        }
+
         public final BitString get() {
             return this.value.clone();
         }
 
-        static final class Readable extends ValueBackedState implements ReadableState {
-            public Readable(final BitString value) {
-                super(value);
+        private static final class Readable extends ValueBackedState implements ReadableState {
+            public Readable(final String name, final Type type, final BitString value) {
+                super(name, type, value);
             }
             @Override
             public Reader reader() {
@@ -69,24 +81,9 @@ public interface State {
             }
         }
 
-        static final class Writable extends ValueBackedState implements WritableState {
-            public Writable(final BitString value) {
-                super(value);
-            }
-            @Override
-            public Writer writer() {
-                return new Writer() {
-                    @Override
-                    void set(final BitString value) {
-                        Writable.this.value = value;
-                    }
-                };
-            }
-        }
-
-        static final class Stored extends ValueBackedState implements ReadableState, WritableState {
-            public Stored(final BitString value) {
-                super(value);
+        private static final class Stored extends ValueBackedState implements ReadableState, WritableState {
+            public Stored(final String name, final Type type, final BitString value) {
+                super(name, type, value);
             }
             @Override
             public Reader reader() {
@@ -124,10 +121,9 @@ public interface State {
         }
 
         return (switch(type) {
-            case IN -> (Function<BitString, State>) ValueBackedState.Readable::new;
-            case OUT -> (Function<BitString, State>) ValueBackedState.Writable::new;
-            case STATE -> (Function<BitString, State>) ValueBackedState.Stored::new;
-        }).apply(value.orElseGet(() -> new BitString(size.orElse(1))));
+            case IN -> (TriFunction<String, Type, BitString, State>) ValueBackedState.Readable::new;
+            case OUT, STATE -> (TriFunction<String, Type, BitString, State>) ValueBackedState.Stored::new;
+        }).apply(name, type, value.orElseGet(() -> new BitString(size.orElse(1))));
     }
 
     static <T> Optional<T> getLayoutParameter(final Map<String, Object> layout, final String name, final Class<T> type) {
