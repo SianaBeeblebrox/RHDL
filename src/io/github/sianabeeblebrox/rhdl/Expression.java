@@ -11,8 +11,8 @@ interface Expression {
     int size();
     BitString evaluate(final Context context);
 
-    static Expression of(final int size, final Function<Context, BitString> impl) {
-        return new Expression() {
+    static Expression of(final int size, final Function<Context, BitString> impl, boolean constant) {
+        return constant ? new ConstExpression(impl.apply(new Context())) : new Expression() {
             @Override
             public int size() {
                 return size;
@@ -33,7 +33,7 @@ interface Expression {
             final BitString result;
             f.accept(result = lhs.evaluate(ctx), rhs.evaluate(ctx));
             return result;
-        });
+        }, lhs instanceof ConstExpression && rhs instanceof ConstExpression);
     }
 
     static Expression and(final Expression lhs, final Expression rhs) {
@@ -49,14 +49,14 @@ interface Expression {
     }
 
     static Expression not(final Expression expression) {
-        return Expression.of(expression.size(), ctx -> expression.evaluate(ctx).not());
+        return Expression.of(expression.size(), ctx -> expression.evaluate(ctx).not(), expression instanceof ConstExpression);
     }
 
     static Expression ternary(final Expression i, final Expression t, final Expression e) {
         if(t.size() != e.size()) {
             throw new ScriptException("Inconsistent sizes %d and %d for ternary branches", t.size(), e.size());
         }
-        return Expression.of(t.size(), ctx -> !i.evaluate(ctx).isEmpty() ? t.evaluate(ctx) : e.evaluate(ctx));
+        return Expression.of(t.size(), ctx -> !i.evaluate(ctx).isEmpty() ? t.evaluate(ctx) : e.evaluate(ctx), i instanceof ConstExpression && t instanceof ConstExpression && e instanceof ConstExpression);
     }
 
     record ConstExpression(BitString value) implements Expression {
@@ -91,23 +91,23 @@ interface Expression {
         if(begin < 0 || end < begin || end >= expression.size()) {
             throw new ScriptException("Invalid slice bounds [%d:%d] for size %d", end, begin, expression.size());
         }
-        return Expression.of(end - begin, ctx -> expression.evaluate(ctx).slice(end, begin));
+        return Expression.of(end - begin, ctx -> expression.evaluate(ctx).slice(end, begin), expression instanceof ConstExpression);
     }
 
     static Expression at(final Expression expression, final Integer index) {
         if(index < 0 || index >= expression.size()) {
             throw new ScriptException("Invalid index %d for size %d", index, expression.size());
         }
-        return Expression.of(1, ctx -> expression.evaluate(ctx).at(index));
+        return Expression.of(1, ctx -> expression.evaluate(ctx).at(index), expression instanceof ConstExpression);
     }
 
     static Expression concat(final Expression lhs, final Expression rhs) {
-        return Expression.of(lhs.size() + rhs.size(), ctx -> BitString.concat(lhs.evaluate(ctx), rhs.evaluate(ctx)));
+        return Expression.of(lhs.size() + rhs.size(), ctx -> BitString.concat(lhs.evaluate(ctx), rhs.evaluate(ctx)), lhs instanceof ConstExpression && rhs instanceof ConstExpression);
     }
 
     static Expression call(final Script script, final String name, final List<Object> args) {
         if((Object) script.getFunction(name) instanceof final ScriptFunction function) {
-            return Expression.of(function.size(script, args), ctx -> function.evaluate(script, new Expression.Context(), args));
+            return Expression.of(function.size(script, args), ctx -> function.evaluate(script, new Expression.Context(), args), false);
         } else {
             throw new ScriptException("No such function '%s'", name);
         }
@@ -115,7 +115,7 @@ interface Expression {
 
     static Expression instruction(final Instruction instruction) {
         if(instruction.size() != null) {
-            return Expression.of(instruction.size(), ctx -> instruction.evaluate());
+            return Expression.of(instruction.size(), ctx -> instruction.evaluate(), false);
         } else {
             throw new ScriptException("Instruction does not resolve to a value");
         }
