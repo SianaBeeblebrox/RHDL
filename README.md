@@ -20,3 +20,12 @@ switch a
   case: d
 end
 ```
+## Functions
++ `any(a)`
++ `all(a)`
++ `inc(a)`
++ `dec(a)`
++ `zero(n)`
++ `one(n)`
++ `rand(n)`
++ `print(...)`
